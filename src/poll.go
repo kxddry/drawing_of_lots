@@ -56,7 +56,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		tellQueue := func() {
 			txt := "Сейчас выбирает " +
 				determinePlaceholder(assignments[i], usersHashmap[assignments[i]][1], usersHashmap[assignments[i]][0])
-			_ = alertEveryoneBut(assignments[i], bot, txt, peers)
+			_ = alertEveryoneButTXT(assignments[i], bot, txt, peers)
 		}
 		tellQueue()
 		for update := range c {
@@ -69,8 +69,8 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 			} else if update.PollAnswer != nil && update.PollAnswer.User.ID != assignments[i] {
 				chatID := update.PollAnswer.User.ID
 				txt := determinePlaceholder(chatID, usersHashmap[chatID][1], usersHashmap[chatID][0])
-				txt += " повлиял на голосование не в свою очередь ⚠️⚠️⚠️ \n\nТеперь придётся проводить голосование заново."
-				_ = alertEveryoneBut(chatID, bot, txt, peers)
+				txt += " повлиял на голосование <b>не в свою очередь</b> ⚠️⚠️⚠️ \n\nТеперь придётся проводить голосование заново."
+				_ = alertEveryoneButTXT(chatID, bot, txt, peers)
 				_ = send(bot, "Вы проголосовали не в свою очередь. Теперь придётся провести голосование заново.", chatID)
 				break
 			}
@@ -104,7 +104,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 					_, _ = bot.Send(forward)
 					deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
 					_, _ = bot.Send(deleter)
-					_ = alertEveryoneBut(int64owner, bot, txt, peers)
+					_ = alertEveryoneButTXT(int64owner, bot, txt, peers)
 					_ = send(bot, "Голосование завершено. Результаты выше.", int64owner)
 					goodEnd = true
 					break
@@ -139,8 +139,11 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		}
 
 		if !goodEnd {
-			_ = alertEveryone(bot, "Что-то пошло не так во время голосования. Голосование завершено.\n\n"+
-				"Зарегистрируйтесь на новое голосование, нажав --> /register.", peers)
+			txt := "Что-то пошло не так во время голосования. Голосование завершено.\n\n" +
+				"Зарегистрируйтесь на новое голосование, нажав кнопку ниже."
+			msg := tgbotapi.NewMessage(int64owner, txt)
+			msg.ReplyMarkup = registerInline
+			_ = alertMessage(bot, msg, peers)
 		}
 		// end of the poll -- reset all data
 		peers = make([]int64, 0, len(peers))

@@ -1,6 +1,7 @@
 package main
 
 import (
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 	"log"
 	"strconv"
@@ -21,6 +22,52 @@ var (
 	usersHashmap         = make(map[int64][]string, MaxUsers) // {...chatID: [username, firstName]...}
 	groups               = genGroups()
 	punishUser           = false
+)
+
+// keyboards
+var (
+	noPollKeyboard = tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Список"),
+			tgbotapi.NewKeyboardButton("Помощь"),
+		),
+	)
+	ownerKeyboard = tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Список"),
+			tgbotapi.NewKeyboardButton("Помощь"),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Poll"),
+			tgbotapi.NewKeyboardButton("Shutdown"),
+		),
+	)
+)
+
+// inline keyboards
+
+var (
+	noPollInline = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Регистрация", "register"),
+			tgbotapi.NewInlineKeyboardButtonData("Выход", "quit"),
+		),
+	)
+	registerInline = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Регистрация", "register"),
+		),
+	)
+	quitInline = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Выход", "quit"),
+		),
+	)
+	sendKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Отправить", "send"),
+		),
+	)
 )
 
 func init() {

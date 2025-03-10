@@ -20,7 +20,7 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 		placeholder := determinePlaceholder(id, firstname, username)
 		if len(upd.PollAnswer.OptionIDs) == 0 {
 			if c.arr[choices[id]] <= 5 {
-				_ = alertEveryoneBut(id, bot, placeholder+" отменил(-а) свой голос!", peers)
+				_ = alertEveryoneButTXT(id, bot, placeholder+" отменил(-а) свой голос!", peers)
 			} else {
 				punishUser = false
 			}
@@ -36,11 +36,11 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 			if c.arr[choice] > MaxUsersPerGroup {
 				punishUser = true
 				_ = send(bot, "Вам нужно перевыбрать. Эта группа заполнена доверху.", id)
-				_ = alertEveryoneBut(id, bot, "⚠️⚠️⚠️ "+placeholder+" попытался(-ась) выбрать "+
+				_ = alertEveryoneButTXT(id, bot, "⚠️⚠️⚠️ "+placeholder+" попытался(-ась) выбрать "+
 					"заполненную группу ⚠️⚠️⚠️", peers)
 			} else {
 				group := strings.Replace(groups[choice], "ппа", "ппу", -1) // russian language workarounds
-				_ = alertEveryoneBut(id, bot, placeholder+" выбрал(-а) "+group+".", peers)
+				_ = alertEveryoneButTXT(id, bot, placeholder+" выбрал(-а) "+group+".", peers)
 			}
 		}
 	}
@@ -99,11 +99,12 @@ func formActiveUsers(nicknamesAndIDs map[int64][]string) string {
 
 func send[sendable string | []byte | []rune](bot *tgbotapi.BotAPI, txt sendable, chatID int64) error {
 	msg := tgbotapi.NewMessage(chatID, string(txt))
+	msg.ParseMode = tgbotapi.ModeHTML
 	_, err := bot.Send(msg)
 	return err
 }
 
-func alertEveryone[sendable string | []byte](bot *tgbotapi.BotAPI, txt sendable, peers []int64) error {
+func alertEveryoneTXT[sendable string | []byte](bot *tgbotapi.BotAPI, txt sendable, peers []int64) error {
 	for _, peer := range peers {
 		err := send(bot, txt, peer)
 		if err != nil {
@@ -113,7 +114,30 @@ func alertEveryone[sendable string | []byte](bot *tgbotapi.BotAPI, txt sendable,
 	return nil
 }
 
-func alertEveryoneBut[sendable string | []byte](id int64, bot *tgbotapi.BotAPI, txt sendable, peers []int64) error {
+func alertMessage(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, peers []int64) error {
+	for _, peerId := range peers {
+		msg.BaseChat.ChatID = peerId
+		_, err := bot.Send(msg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func alertMsgBut(id int64, bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, peers []int64) error {
+	for _, peer := range peers {
+		if peer != id {
+			msg.BaseChat.ChatID = peer
+			_, err := bot.Send(msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+func alertEveryoneButTXT[sendable string | []byte](id int64, bot *tgbotapi.BotAPI, txt sendable, peers []int64) error {
 	for _, peer := range peers {
 		if peer != id {
 			err := send(bot, txt, peer)
@@ -187,4 +211,15 @@ func formChosen(choices map[int64]int) string {
 		res += str
 	}
 	return res
+}
+
+func sendNoPoll(bot *tgbotapi.BotAPI, txt string, chatID int64) {
+	msg := tgbotapi.NewMessage(chatID, txt)
+	if chatID == int64owner {
+		msg.ReplyMarkup = ownerKeyboard
+	} else {
+		msg.ReplyMarkup = noPollKeyboard
+	}
+	msg.ParseMode = tgbotapi.ModeHTML
+	_, _ = bot.Send(msg)
 }
