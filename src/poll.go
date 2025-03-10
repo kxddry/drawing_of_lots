@@ -53,7 +53,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 			log.Fatal(err)
 		}
 		tellQueue := func() {
-			txt := "Сейчас выбирает" +
+			txt := "Сейчас выбирает " +
 				determinePlaceholder(assignments[i], usersHashmap[assignments[i]][1], usersHashmap[assignments[i]][0])
 			_ = alertEveryoneBut(assignments[i], bot, txt, peers)
 		}
