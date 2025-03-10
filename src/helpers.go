@@ -144,7 +144,7 @@ func determinePlaceholder(id int64, firstname, username string) string {
 			placeholder = firstname
 		}
 	} else {
-		placeholder = username
+		placeholder = "@" + username
 	}
 	return placeholder
 }

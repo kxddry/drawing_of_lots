@@ -90,7 +90,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 				if i == len(peers) { // end the poll
 					forward = tgbotapi.NewForward(int64owner, assignments[i-1], msg.MessageID)
 					txt = "Голосование завершено. Всем спасибо за участие. " +
-						"Опрос отправлен @" + usersHashmap[int64owner][0]
+						"Опрос отправлен " + determinePlaceholder(int64owner, usersHashmap[int64owner][1], usersHashmap[int64owner][0])
 					_, _ = bot.Send(forward)
 					deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
 					_, _ = bot.Send(deleter)
