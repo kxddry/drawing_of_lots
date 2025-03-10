@@ -63,7 +63,7 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("Выход", "quit"),
 		),
 	)
-	sendKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+	sendInline = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Отправить", "send"),
 		),

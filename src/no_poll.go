@@ -143,7 +143,8 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 						}
 
 						if userId != int64owner {
-							err := send(bot, firstName+" удален(-а) из голосования.", int64owner)
+							placeholder := determinePlaceholder(userId, firstName, username)
+							err := send(bot, placeholder+" удален(-а) из голосования.", int64owner)
 							if err != nil {
 								log.Println(err)
 							}
