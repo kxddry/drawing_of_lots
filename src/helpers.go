@@ -154,3 +154,20 @@ func sendCounter(bot *tgbotapi.BotAPI, c *Counter, chatID int64) error {
 	_, err := bot.Send(msg)
 	return err
 }
+
+func formChosen(choices map[int64]int) string {
+	res := ""
+	for i := 0; i < NumberOfGroups; i++ {
+		str := groups[i] + ": [ "
+		for userId, choice := range choices {
+			username, firstName := usersHashmap[userId][0], usersHashmap[userId][1]
+			placeholder := determinePlaceholder(userId, firstName, username)
+			if choice == i {
+				str += placeholder + " "
+			}
+		}
+		str += "]"
+		res += str
+	}
+	return res
+}

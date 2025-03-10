@@ -101,7 +101,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 				_ = send(bot, pollText, assignments[i])
 				infoText := "Выбирайте группу, в которой есть места. Счётчик мест для каждой группы: \n\n\t" +
 					formCounter(&counter) + "\n\n" + "Подходят группы, в которых меньше " +
-					strconv.Itoa(MaxUsersPerGroup) + " человек."
+					strconv.Itoa(MaxUsersPerGroup) + " человек. Люди, выбравшие группы:\n\n" + formChosen(choices)
 				_ = send(bot, infoText, assignments[i])
 				tmp, _ := bot.Send(forward)
 				deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
