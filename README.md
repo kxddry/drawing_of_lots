@@ -4,8 +4,8 @@ A Telegram Bot for Drawing of Lots \
 ---
 
 > usage:
-> - ask all participants to use the command /start
-> - have an owner that will be able to send commands /poll, /start, /next, /send, etc.
+> - ask all participants to use the command /register to register in the poll
+> - have an owner that will be able to send the command /poll
 > - create a file called pkg/.env, having `TOKEN`=`bot_api` and `OWNER`=`telegram_ID` inside
 > - its simple really
 
@@ -18,3 +18,5 @@ A Telegram Bot for Drawing of Lots \
 > - include tests
 > 
 > - help would be appreciated
+> 
+> - have to fix a bug: polls don't show the partakers unless you're the owner
