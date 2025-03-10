@@ -33,9 +33,9 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 					peers = append(peers, chatID)                        // add the user to the slice of users
 					usersHashmap[chatID] = []string{username, firstName} // add the user to the hashmap of users
 					txt = "Вы добавлены в голосование."
-
+					placeholder := determinePlaceholder(chatID, firstName, username)
 					if chatID != int64owner {
-						err := send(bot, firstName+" добавлен(-а) в голосование.", int64owner)
+						err := send(bot, placeholder+" добавлен(-а) в голосование.", int64owner)
 						if err != nil {
 							log.Println(err)
 						}

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -59,19 +60,24 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		}
 		tellQueue()
 		for update := range c {
-			chatID := update.Message.From.ID
-			if update.PollAnswer != nil && update.Message.From.ID == assignments[i] {
+			if update.PollAnswer != nil && update.PollAnswer.PollID != msg.Poll.ID {
+				continue
+			}
+
+			if update.PollAnswer != nil && update.PollAnswer.User.ID == assignments[i] {
 				myUpdChan <- update
-			} else if update.Message.From.ID != assignments[i] {
+			} else if update.PollAnswer != nil && update.PollAnswer.User.ID != assignments[i] {
+				chatID := update.PollAnswer.User.ID
 				txt := determinePlaceholder(chatID, usersHashmap[chatID][1], usersHashmap[chatID][0])
 				txt += " повлиял на голосование не в свою очередь ⚠️⚠️⚠️ \n\nТеперь придётся проводить голосование заново."
-				_ = alertEveryoneBut(chatID, bot, "", peers)
+				_ = alertEveryoneBut(chatID, bot, txt, peers)
 				_ = send(bot, "Вы проголосовали не в свою очередь. Теперь придётся провести голосование заново.", chatID)
 				break
 			}
 			if update.Message == nil {
 				continue
 			}
+			chatID := update.Message.From.ID
 			if chatID != int64owner && chatID != assignments[i] {
 				// only process messages
 				// from the owner and the curr id
@@ -79,12 +85,16 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 				continue
 			}
 			if chatID == assignments[i] && update.Message.Command() == "next" {
+				if choices[chatID] == -1 {
+					_ = send(bot, "Вы должны выбрать хоть какую-нибудь группу.", chatID)
+					continue
+				}
 				if punishUser {
 					_ = send(bot, "Вы должны выбрать группу, в которой есть места.", chatID)
 					continue
 				}
 				i++
-				txt := "Вы выбрали: `" + groups[choices[chatID]] + "`."
+				txt := "Вы выбрали " + strings.Replace(groups[choices[chatID]], "ппа", "ппу", -1) + "."
 				_ = send(bot, txt, chatID)
 				forward := tgbotapi.NewForward(assignments[i], assignments[i-1], msg.MessageID)
 				if i == len(peers) { // end the poll
@@ -94,12 +104,14 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 					_, _ = bot.Send(forward)
 					deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
 					_, _ = bot.Send(deleter)
-					_ = alertEveryone(bot, txt, peers)
+					_ = alertEveryoneBut(int64owner, bot, txt, peers)
+					_ = send(bot, "Голосование завершено. Результаты выше.", int64owner)
 					goodEnd = true
 					break
 				}
+				tellQueue()
 				_ = send(bot, pollText, assignments[i])
-				infoText := "Выбирайте группу, в которой есть места. Счётчик мест для каждой группы: \n\n\t" +
+				infoText := "Выбирайте группу, в которой есть места. Счётчик мест для каждой группы: \n\n" +
 					formCounter(&counter) + "\n\n" + "Подходят группы, в которых меньше " +
 					strconv.Itoa(MaxUsersPerGroup) + " человек. Люди, выбравшие группы:\n\n" + formChosen(choices)
 				_ = send(bot, infoText, assignments[i])
@@ -127,7 +139,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		}
 
 		if !goodEnd {
-			_ = alertEveryone(bot, "Голосование завершено.\n\n"+
+			_ = alertEveryone(bot, "Что-то пошло не так во время голосования. Голосование завершено.\n\n"+
 				"Зарегистрируйтесь на новое голосование, нажав --> /register.", peers)
 		}
 		// end of the poll -- reset all data

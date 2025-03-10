@@ -4,6 +4,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"math/rand"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
@@ -13,19 +14,23 @@ type Counter struct {
 
 func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, choices map[int64]int) {
 	for upd := range updChan {
-		username := upd.Message.From.UserName
-		firstname := upd.Message.From.FirstName
-		id := upd.Message.From.ID
+		id := upd.PollAnswer.User.ID
+		username := upd.PollAnswer.User.UserName
+		firstname := upd.PollAnswer.User.FirstName
 		placeholder := determinePlaceholder(id, firstname, username)
-		choice := upd.PollAnswer.OptionIDs[0]
 		if len(upd.PollAnswer.OptionIDs) == 0 {
 			if c.arr[choices[id]] <= 5 {
 				_ = alertEveryoneBut(id, bot, placeholder+" отменил(-а) свой голос!", peers)
 			} else {
 				punishUser = false
 			}
+			if choices[id] == -1 {
+				_ = send(bot, "забанят", id)
+			}
 			c.arr[choices[id]]--
+			choices[id] = -1
 		} else {
+			choice := upd.PollAnswer.OptionIDs[0]
 			choices[id] = choice
 			c.arr[choice]++
 			if c.arr[choice] > MaxUsersPerGroup {
@@ -34,7 +39,8 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 				_ = alertEveryoneBut(id, bot, "⚠️⚠️⚠️ "+placeholder+" попытался(-ась) выбрать "+
 					"заполненную группу ⚠️⚠️⚠️", peers)
 			} else {
-				_ = alertEveryoneBut(id, bot, placeholder+" выбрал "+groups[choice], peers)
+				group := strings.Replace(groups[choice], "ппа", "ппу", -1) // russian language workarounds
+				_ = alertEveryoneBut(id, bot, placeholder+" выбрал(-а) "+group+".", peers)
 			}
 		}
 	}
@@ -70,7 +76,8 @@ func shuffle(slice []int64) []int64 {
 
 func formTable(nicknamesAndIDs map[int64][]string, assignments map[int]int64) string {
 	res := ""
-	for n, chatID := range assignments {
+	for n := 0; n != len(assignments); n++ {
+		chatID := assignments[n]
 		username, firstName := nicknamesAndIDs[chatID][0], nicknamesAndIDs[chatID][1]
 		str := strconv.Itoa(n) + " --> " + determinePlaceholder(chatID, firstName, username) + "\n"
 		res += str
@@ -129,8 +136,18 @@ func checkValid(str string) bool {
 
 func formCounter(c *Counter) string {
 	res := ""
+	allZeroes := true
 	for i := 0; i < NumberOfGroups; i++ {
-		res += groups[i] + ": " + strconv.Itoa(c.arr[i]) + "\n"
+		if c.arr[i] != 0 {
+			allZeroes = false
+			break
+		}
+	}
+	if allZeroes {
+		return res
+	}
+	for i := 0; i < NumberOfGroups; i++ {
+		res += "- " + groups[i] + ": " + strconv.Itoa(c.arr[i]) + "\n"
 	}
 	return res
 }
@@ -158,7 +175,7 @@ func sendCounter(bot *tgbotapi.BotAPI, c *Counter, chatID int64) error {
 func formChosen(choices map[int64]int) string {
 	res := ""
 	for i := 0; i < NumberOfGroups; i++ {
-		str := groups[i] + ": [ "
+		str := "- " + groups[i] + ": [ "
 		for userId, choice := range choices {
 			username, firstName := usersHashmap[userId][0], usersHashmap[userId][1]
 			placeholder := determinePlaceholder(userId, firstName, username)
@@ -166,7 +183,7 @@ func formChosen(choices map[int64]int) string {
 				str += placeholder + " "
 			}
 		}
-		str += "]"
+		str += "]\n"
 		res += str
 	}
 	return res
