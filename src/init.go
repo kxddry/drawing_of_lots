@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	MaxUsers       = 32
-	NumberOfGroups = 3
+	MaxUsers         = 28
+	NumberOfGroups   = 3
+	MaxUsersPerGroup = 10 // will have to check back on that
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 	peers                = make([]int64, 0, MaxUsers)         // users
 	usersHashmap         = make(map[int64][]string, MaxUsers) // {...chatID: [username, firstName]...}
 	groups               = genGroups()
+	punishUser           = false
 )
 
 func init() {

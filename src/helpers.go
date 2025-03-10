@@ -11,26 +11,32 @@ type Counter struct {
 	arr [NumberOfGroups]int
 }
 
-func (c *Counter) process(upd tgbotapi.Update, bot *tgbotapi.BotAPI, choices map[int64]int) {
-	username := upd.Message.From.UserName
-	firstname := upd.Message.From.FirstName
-	id := upd.Message.From.ID
-	placeholder := ""
-	choice := upd.PollAnswer.OptionIDs[0]
-	if username == "" { // empty username
-		if !checkValid(firstname) { // empty username, non-valid first name
-			placeholder = strconv.Itoa(int(id))
+func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, choices map[int64]int) {
+	for upd := range updChan {
+		username := upd.Message.From.UserName
+		firstname := upd.Message.From.FirstName
+		id := upd.Message.From.ID
+		placeholder := determinePlaceholder(id, firstname, username)
+		choice := upd.PollAnswer.OptionIDs[0]
+		if len(upd.PollAnswer.OptionIDs) == 0 {
+			if c.arr[choices[id]] <= 5 {
+				_ = alertEveryoneBut(id, bot, placeholder+" отменил(-а) свой голос!", peers)
+			} else {
+				punishUser = false
+			}
+			c.arr[choices[id]]--
+		} else {
+			choices[id] = choice
+			c.arr[choice]++
+			if c.arr[choice] > MaxUsersPerGroup {
+				punishUser = true
+				_ = send(bot, "Вам нужно перевыбрать. Эта группа заполнена доверху.", id)
+				_ = alertEveryoneBut(id, bot, "⚠️⚠️⚠️ "+placeholder+" попытался(-ась) выбрать "+
+					"заполненную группу ⚠️⚠️⚠️", peers)
+			} else {
+				_ = alertEveryoneBut(id, bot, placeholder+" выбрал "+groups[choice], peers)
+			}
 		}
-		placeholder = firstname
-	} else {
-		placeholder = username
-	}
-	if len(upd.PollAnswer.OptionIDs) == 0 {
-		_ = alertEveryoneBut(id, bot, placeholder+" отменил(-а) свой голос!", peers)
-	} else {
-		_ = alertEveryoneBut(id, bot, placeholder+" выбрал "+groups[choice], peers)
-		choices[id] = choice
-		c.arr[choice]++
 	}
 }
 
@@ -66,12 +72,7 @@ func formTable(nicknamesAndIDs map[int64][]string, assignments map[int]int64) st
 	res := ""
 	for n, chatID := range assignments {
 		username, firstName := nicknamesAndIDs[chatID][0], nicknamesAndIDs[chatID][1]
-		str := ""
-		if username == "" {
-			str = strconv.Itoa(n) + " --> " + firstName + "\n"
-		} else {
-			str = strconv.Itoa(n) + " --> @" + username + " (" + firstName + ")\n"
-		}
+		str := strconv.Itoa(n) + " --> " + determinePlaceholder(chatID, firstName, username) + "\n"
 		res += str
 	}
 	return res
@@ -80,14 +81,9 @@ func formTable(nicknamesAndIDs map[int64][]string, assignments map[int]int64) st
 func formActiveUsers(nicknamesAndIDs map[int64][]string) string {
 	res := ""
 	i := 1
-	for _, arr := range nicknamesAndIDs {
+	for ID, arr := range nicknamesAndIDs {
 		username, firstName := arr[0], arr[1]
-		str := ""
-		if username == "" {
-			str = strconv.Itoa(i) + ". " + firstName + "\n"
-		} else {
-			str = strconv.Itoa(i) + ". @" + username + " (" + firstName + ")\n"
-		}
+		str := strconv.Itoa(i) + ". " + determinePlaceholder(ID, firstName, username) + "\n"
 		res += str
 		i++
 	}
@@ -129,4 +125,32 @@ func checkValid(str string) bool {
 		}
 	}
 	return false
+}
+
+func formCounter(c *Counter) string {
+	res := ""
+	for i := 0; i < NumberOfGroups; i++ {
+		res += groups[i] + ": " + strconv.Itoa(c.arr[i]) + "\n"
+	}
+	return res
+}
+
+func determinePlaceholder(id int64, firstname, username string) string {
+	placeholder := ""
+	if username == "" { // empty username
+		if !checkValid(firstname) { // empty username, non-valid first name
+			placeholder = strconv.Itoa(int(id))
+		} else {
+			placeholder = firstname
+		}
+	} else {
+		placeholder = username
+	}
+	return placeholder
+}
+
+func sendCounter(bot *tgbotapi.BotAPI, c *Counter, chatID int64) error {
+	msg := tgbotapi.NewMessage(chatID, formCounter(c))
+	_, err := bot.Send(msg)
+	return err
 }
