@@ -15,6 +15,8 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		<-startPoll
 		assignments := make(map[int]int64, len(peers))
 		shuffledPeers := shuffle(peers)
+		choices := make(map[int64]int, len(peers))
+		counter := Counter{}
 
 		for n, participant := range shuffledPeers {
 			assignments[n] = participant
@@ -34,11 +36,14 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		i := 0
 
 		question := "Выбор группы"
-		options := []string{"группа 1", "группа 2", "группа 3"}
+		options := genGroups()
 		thePoll := tgbotapi.NewPoll(assignments[i], question, options...)
 		thePoll.IsAnonymous = false
 
-		pollText := "Вот опрос. \n\n" + "Когда сделаете окончательный выбор, пожалуйста, нажмите /next.\n\n"
+		pollText := "Вот опрос. \n\n" + "Когда сделаете окончательный выбор, пожалуйста, нажмите /next.\n\n" +
+			"Сейчас не видны пользователи, проголосовавшие за тот или иной вариант, но при пересылке опроса их видно.\n" +
+			"Я не знаю, как это исправить без костылей.\n\n"
+
 		err := send(bot, pollText, assignments[i])
 		if err != nil {
 			log.Println(err)
@@ -49,6 +54,9 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		}
 
 		for update := range c {
+			if update.PollAnswer != nil {
+				counter.process(update, bot, choices)
+			}
 			if update.Message == nil {
 				continue
 			}

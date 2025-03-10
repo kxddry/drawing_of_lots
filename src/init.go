@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	MaxUsers = 32
+	MaxUsers       = 32
+	NumberOfGroups = 3
 )
 
 var (
@@ -17,6 +18,7 @@ var (
 	int64owner, errParse = strconv.ParseInt(owner, 10, 64)    // 64 bytes is required for userIDs
 	peers                = make([]int64, 0, MaxUsers)         // users
 	usersHashmap         = make(map[int64][]string, MaxUsers) // {...chatID: [username, firstName]...}
+	groups               = genGroups()
 )
 
 func init() {
