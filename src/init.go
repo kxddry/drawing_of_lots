@@ -42,6 +42,12 @@ var (
 			tgbotapi.NewKeyboardButton("Shutdown"),
 		),
 	)
+	pollOwnerKeyboard = tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Poll"),
+			tgbotapi.NewKeyboardButton("Shutdown"),
+		),
+	)
 )
 
 // inline keyboards

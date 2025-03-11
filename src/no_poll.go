@@ -47,20 +47,24 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 							"\n\t- \"<b>Помощь</b>\" для помощи \n\t- \"<b>Список</b>\" для получения списка участвующих."
 						sendNoPoll(bot, text, chatID)
 
-						text2 := "Выберите, будете ли участвовать в голосовании."
-						msg := tgbotapi.NewMessage(chatID, text2)
-						msg.ReplyMarkup = noPollInline
-						_, _ = bot.Send(msg)
+						if in(peers, chatID) != -1 {
+							msg := tgbotapi.NewMessage(chatID, "Вы <b>участвуете</b> в голосовании.")
+							msg.ReplyMarkup = quitInline
+							msg.ParseMode = tgbotapi.ModeHTML
+							_, _ = bot.Send(msg)
+						} else {
+							text2 := "Выберите, будете ли участвовать в голосовании."
+							msg := tgbotapi.NewMessage(chatID, text2)
+							msg.ReplyMarkup = noPollInline
+							_, _ = bot.Send(msg)
+						}
 
 					case "Poll":
 						if chatID == int64owner {
 							txt := ""
 							if len(peers) <= 1 {
 								txt = "not enough users"
-								err := send(bot, txt, chatID)
-								if err != nil {
-									log.Println(err)
-								}
+								sendNoPoll(bot, txt, chatID)
 								continue
 							}
 							txt = "Голосование началось."
@@ -73,19 +77,16 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 							startPoll <- struct{}{}
 							break loop
 						} else {
-							_ = send(bot, "You're not permitted to do that.", chatID)
+							sendNoPoll(bot, "You're not permitted to do that.", chatID)
 						}
 					case "Shutdown":
 						if chatID == int64owner {
-							err := send(bot, "Shutting down.", int64owner)
-							if err != nil {
-								log.Fatal(err)
-							}
+							sendNoPoll(bot, "Shutting down.", int64owner)
 							os.Exit(228)
 						}
-						_ = send(bot, "You're not permitted to do that.", chatID)
+						sendNoPoll(bot, "You're not permitted to do that.", chatID)
 					default:
-						_ = send(bot, "Я не знаю, как ответить на это сообщение.", chatID)
+						sendNoPoll(bot, "Я не знаю, как ответить на это сообщение.", chatID)
 					}
 				}
 			} else if update.CallbackQuery != nil {
@@ -112,10 +113,7 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 							log.Println(err)
 						}
 						if userId != int64owner {
-							err := send(bot, placeholder+" добавлен(-а) в голосование.", int64owner)
-							if err != nil {
-								log.Println(err)
-							}
+							sendNoPoll(bot, placeholder+" добавлен(-а) в голосование.", int64owner)
 						}
 
 					} else {
@@ -144,10 +142,7 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 
 						if userId != int64owner {
 							placeholder := determinePlaceholder(userId, firstName, username)
-							err := send(bot, placeholder+" удален(-а) из голосования.", int64owner)
-							if err != nil {
-								log.Println(err)
-							}
+							sendNoPoll(bot, placeholder+" удален(-а) из голосования.", int64owner)
 						}
 
 					}

@@ -137,6 +137,43 @@ func alertMsgBut(id int64, bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, pee
 	}
 	return nil
 }
+
+func alertCustomBut(id int64, bot *tgbotapi.BotAPI, txt string, reply, replyOwner tgbotapi.ReplyKeyboardMarkup, peers []int64) error {
+	for _, peer := range peers {
+		if peer != id {
+			msg := tgbotapi.NewMessage(peer, txt)
+			msg.BaseChat.ChatID = peer
+			if peer == int64owner {
+				msg.ReplyMarkup = replyOwner
+			} else {
+				msg.ReplyMarkup = reply
+			}
+			_, err := bot.Send(msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func alertCustom(bot *tgbotapi.BotAPI, txt string, reply, replyOwner tgbotapi.ReplyKeyboardMarkup, peers []int64) error {
+	for _, peer := range peers {
+		msg := tgbotapi.NewMessage(peer, txt)
+		msg.BaseChat.ChatID = peer
+		if peer == int64owner {
+			msg.ReplyMarkup = replyOwner
+		} else {
+			msg.ReplyMarkup = reply
+		}
+		_, err := bot.Send(msg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func alertEveryoneButTXT[sendable string | []byte](id int64, bot *tgbotapi.BotAPI, txt sendable, peers []int64) error {
 	for _, peer := range peers {
 		if peer != id {

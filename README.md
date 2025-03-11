@@ -1,22 +1,36 @@
-# drawing_of_lots
+# Smart Drawing of Lots
 A Telegram Bot for Drawing of Lots \
-Бот Телеграм для проведения собранной жеребьёвки
----
-
-> usage:
-> - ask all participants to use the command /register to register in the poll
-> - have an owner that will be able to send the command /poll
-> - create a file called pkg/.env, having `TOKEN`=`bot_api` and `OWNER`=`telegram_ID` inside
-> - its simple really
+Бот Телеграм для проведения честных голосований
 
 ---
 
-> TODO:
-> 
-> - add inline buttons
-> 
-> - include tests
-> 
-> - help would be appreciated
-> 
-> - have to fix a bug: polls don't show the partakers unless you're the owner
+### The idea:
+
+whenever you have to have a group of people organized in something, something always fails...
+for example, whenever you have to agree on an exam time for students, some people will believe
+the random online poll is a great option, others will disagree, stating that the best way to choose
+whoever gets right of say in the time of the exam is the one who enters the university doors first.
+Both of these options suck, and so I've come up with this bot.
+
+The bot allows a group of people to let luck choose the order that people choose in. It uses pseudorandom 
+array shuffling (not sure how to implement truly random shuffle using random org API). 
+The people voting don't have to do anything other than press a couple buttons, and that's the best thing about it.
+Besides that, though, is the fact that everyone has an equal amount in the right of say. You don't need to have a
+faster internet connection or a faster car. Everyone is equal.
+
+Moreover, this system is impeccable and impermeable: it tracks down whenever someone cancels a vote or votes, tells that
+to everyone, and if someone has cheated (voted outside their position in line), stops the poll and tells everyone
+whoever cheated and how.
+
+With that being said, let the polls start.
+
+---
+
+### usage:
+> - all participants have to register via a button
+> - the host has to start the poll once two or more people have registered
+> - the host can manipulate the bot via the buttons
+
+---
+
+> still testing, write an issue if you find a bug
