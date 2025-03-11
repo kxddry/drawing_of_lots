@@ -17,57 +17,53 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 				chatID := update.Message.Chat.ID
 				if update.Message.IsCommand() {
 					if update.Message.Command() == "start" {
-						text := "Добро пожаловать! \n<b>Использование:</b> \n\t- \"<b>Регистрация</b>\" для регистрации в голосовании" +
-							" \n\t- \"<b>Выход</b>\", чтобы не участвовать" +
-							"\n\t- \"<b>Помощь</b>\" для помощи \n\t- \"<b>Список</b>\" для получения списка участвующих."
+						text := lang["start"]
 						sendNoPoll(bot, text, chatID)
 
-						text2 := "Выберите, будете ли участвовать в голосовании."
+						text2 := lang["start2"]
 						msg := tgbotapi.NewMessage(chatID, text2)
 						msg.ReplyMarkup = noPollInline
 						_, _ = bot.Send(msg)
 					} else {
-						sendNoPoll(bot, "Неизвестная команда.", chatID)
+						sendNoPoll(bot, lang["unknownCommand"], chatID)
 					}
 				} else {
 					switch update.Message.Text {
-					case "Список":
+					case lang["list"]:
 						txt := ""
 						switch {
 						case 2 <= len(peers) && len(peers) <= 4 && (len(peers) < 10 || len(peers) > 15):
-							txt = "Сейчас участвует " + strconv.Itoa(len(peers)) + " человека в голосовании.\n"
+							txt = lang["listCase"] + strconv.Itoa(len(peers)) + lang["listCase1"]
 						default:
-							txt = "Сейчас участвует " + strconv.Itoa(len(peers)) + " человек в голосовании.\n"
+							txt = lang["listCase"] + strconv.Itoa(len(peers)) + lang["listCase2"]
 						}
 						txt += formActiveUsers(usersHashmap)
 						sendNoPoll(bot, txt, chatID)
-					case "Помощь":
-						text := "Добро пожаловать! \n<b>Использование:</b> \n\t- \"<b>Регистрация</b>\" для регистрации в голосовании" +
-							" \n\t- \"<b>Выход</b>\", чтобы не участвовать" +
-							"\n\t- \"<b>Помощь</b>\" для помощи \n\t- \"<b>Список</b>\" для получения списка участвующих."
+					case lang["help"]:
+						text := lang["start"]
 						sendNoPoll(bot, text, chatID)
 
 						if in(peers, chatID) != -1 {
-							msg := tgbotapi.NewMessage(chatID, "Вы <b>участвуете</b> в голосовании.")
+							msg := tgbotapi.NewMessage(chatID, lang["userEnlists"])
 							msg.ReplyMarkup = quitInline
 							msg.ParseMode = tgbotapi.ModeHTML
 							_, _ = bot.Send(msg)
 						} else {
-							text2 := "Выберите, будете ли участвовать в голосовании."
+							text2 := lang["userIsThinkingAboutEnlisting"]
 							msg := tgbotapi.NewMessage(chatID, text2)
 							msg.ReplyMarkup = noPollInline
 							_, _ = bot.Send(msg)
 						}
 
-					case "Poll":
+					case lang["pollButton"]:
 						if chatID == int64owner {
 							txt := ""
 							if len(peers) <= 1 {
-								txt = "not enough users"
+								txt = lang["notEnoughUsers"]
 								sendNoPoll(bot, txt, chatID)
 								continue
 							}
-							txt = "Голосование началось."
+							txt = lang["pollStarted"]
 							msg := tgbotapi.NewMessage(chatID, txt)
 							msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 							err := alertMessage(bot, msg, peers)
@@ -77,16 +73,16 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 							startPoll <- struct{}{}
 							break loop
 						} else {
-							sendNoPoll(bot, "You're not permitted to do that.", chatID)
+							sendNoPoll(bot, lang["notPermitted"], chatID)
 						}
-					case "Shutdown":
+					case lang["shutdownButton"]:
 						if chatID == int64owner {
-							sendNoPoll(bot, "Shutting down.", int64owner)
+							sendNoPoll(bot, lang["shutdown"], int64owner)
 							os.Exit(228)
 						}
-						sendNoPoll(bot, "You're not permitted to do that.", chatID)
+						sendNoPoll(bot, lang["notPermitted"], chatID)
 					default:
-						sendNoPoll(bot, "Я не знаю, как ответить на это сообщение.", chatID)
+						sendNoPoll(bot, lang["unknownMessage"], chatID)
 					}
 				}
 			} else if update.CallbackQuery != nil {
@@ -102,10 +98,10 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 					if in(peers, userId) == -1 {
 						peers = append(peers, userId)                        // add the user to the slice of users
 						usersHashmap[userId] = []string{username, firstname} // add the user to the hashmap of users
-						txt = "Вы добавлены в голосование."
+						txt = lang["addedToPoll"]
 						placeholder := determinePlaceholder(userId, firstname, username)
 
-						msg := tgbotapi.NewEditMessageText(userId, messageId, "Вы <b>участвуете</b> в голосовании.")
+						msg := tgbotapi.NewEditMessageText(userId, messageId, lang["userEnlists"])
 						msg.ParseMode = tgbotapi.ModeHTML
 						msg.ReplyMarkup = &quitInline
 						_, err := bot.Send(msg)
@@ -113,26 +109,26 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 							log.Println(err)
 						}
 						if userId != int64owner {
-							sendNoPoll(bot, placeholder+" добавлен(-а) в голосование.", int64owner)
+							sendNoPoll(bot, placeholder+lang["someoneAddedToPoll"], int64owner)
 						}
 
 					} else {
-						txt = "Вы уже участвуете в голосовании."
+						txt = lang["userAlreadyInPoll"]
 					}
 					callback := tgbotapi.NewCallback(queryId, txt)
 					_, _ = bot.Request(callback)
 				case "quit":
 					txt := ""
 					if in(peers, userId) == -1 {
-						txt = "Вы и так не участвуете."
+						txt = lang["userAlreadyNotInPoll"]
 					} else {
 						firstName := update.CallbackQuery.From.FirstName
 						index := in(peers, userId)
 						peers = append(peers[0:index], peers[index+1:]...)
 						delete(usersHashmap, userId)
-						txt = "Вы удалены из голосования."
+						txt = lang["userDeletedFromPoll"]
 
-						msg := tgbotapi.NewEditMessageText(userId, messageId, "Вы <b>не</b> участвуете в голосовании.")
+						msg := tgbotapi.NewEditMessageText(userId, messageId, lang["userDoesntEnlist"])
 						msg.ParseMode = tgbotapi.ModeHTML
 						msg.ReplyMarkup = &registerInline
 						_, err := bot.Send(msg)
@@ -142,7 +138,7 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 
 						if userId != int64owner {
 							placeholder := determinePlaceholder(userId, firstName, username)
-							sendNoPoll(bot, placeholder+" удален(-а) из голосования.", int64owner)
+							sendNoPoll(bot, placeholder+lang["someoneDeletedFromPoll"], int64owner)
 						}
 
 					}

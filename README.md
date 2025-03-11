@@ -12,8 +12,8 @@ the random online poll is a great option, others will disagree, stating that the
 whoever gets right of say in the time of the exam is the one who enters the university doors first.
 Both of these options suck, and so I've come up with this bot.
 
-The bot allows a group of people to let luck choose the order that people choose in. It uses pseudorandom 
-array shuffling (not sure how to implement truly random shuffle using random org API). 
+The bot allows a group of people to let luck choose the order that people choose in. It uses truly random shuffling.
+(In case the random.org API key is wrong or something else goes wrong, pseudo random shuffling).
 The people voting don't have to do anything other than press a couple buttons, and that's the best thing about it.
 Besides that, though, is the fact that everyone has an equal amount in the right of say. You don't need to have a
 faster internet connection or a faster car. Everyone is equal.

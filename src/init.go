@@ -14,6 +14,7 @@ const (
 )
 
 var (
+	BotLanguage          = envFile["language"]
 	envFile, errOpen     = godotenv.Read("pkg/.env")          // the .env file is located in the pkg folder
 	token                = envFile["TOKEN"]                   // the telegram bot API token
 	owner                = envFile["OWNER"]                   // the ID of the one starting the polls
@@ -22,30 +23,31 @@ var (
 	usersHashmap         = make(map[int64][]string, MaxUsers) // {...chatID: [username, firstName]...}
 	groups               = genGroups()
 	punishUser           = false
+	randomToken          = envFile["RANDOM_ORG_API_TOKEN"]
 )
 
 // keyboards
 var (
 	noPollKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Список"),
-			tgbotapi.NewKeyboardButton("Помощь"),
+			tgbotapi.NewKeyboardButton(lang["list"]),
+			tgbotapi.NewKeyboardButton(lang["help"]),
 		),
 	)
 	ownerKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Список"),
-			tgbotapi.NewKeyboardButton("Помощь"),
+			tgbotapi.NewKeyboardButton(lang["list"]),
+			tgbotapi.NewKeyboardButton(lang["help"]),
 		),
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Poll"),
-			tgbotapi.NewKeyboardButton("Shutdown"),
+			tgbotapi.NewKeyboardButton(lang["pollButton"]),
+			tgbotapi.NewKeyboardButton(lang["shutdownButton"]),
 		),
 	)
 	pollOwnerKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Poll"),
-			tgbotapi.NewKeyboardButton("Shutdown"),
+			tgbotapi.NewKeyboardButton(lang["pollButton"]),
+			tgbotapi.NewKeyboardButton(lang["shutdownButton"]),
 		),
 	)
 )
@@ -55,23 +57,23 @@ var (
 var (
 	noPollInline = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Регистрация", "register"),
-			tgbotapi.NewInlineKeyboardButtonData("Выход", "quit"),
+			tgbotapi.NewInlineKeyboardButtonData(lang["register"], "register"),
+			tgbotapi.NewInlineKeyboardButtonData(lang["quit"], "quit"),
 		),
 	)
 	registerInline = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Регистрация", "register"),
+			tgbotapi.NewInlineKeyboardButtonData(lang["register"], "register"),
 		),
 	)
 	quitInline = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Выход", "quit"),
+			tgbotapi.NewInlineKeyboardButtonData(lang["quit"], "quit"),
 		),
 	)
 	sendInline = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Отправить", "send"),
+			tgbotapi.NewInlineKeyboardButtonData(lang["sendButton"], "send"),
 		),
 	)
 )
@@ -85,6 +87,12 @@ func init() {
 	}
 	if owner == "" {
 		log.Fatal("No owner provided")
+	}
+	if randomToken == "" {
+		log.Fatal("No random.org API token provided.")
+	}
+	if BotLanguage == "" {
+		log.Fatal("No bot-language provided.")
 	}
 	if errParse != nil {
 		log.Fatal(errParse)

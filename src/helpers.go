@@ -2,7 +2,6 @@ package main
 
 import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"math/rand"
 	"strconv"
 	"strings"
 	"unicode"
@@ -20,12 +19,12 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 		placeholder := determinePlaceholder(id, firstname, username)
 		if len(upd.PollAnswer.OptionIDs) == 0 {
 			if c.arr[choices[id]] <= 5 {
-				_ = alertEveryoneButTXT(id, bot, placeholder+" отменил(-а) свой голос!", peers)
+				_ = alertEveryoneButTXT(id, bot, placeholder+lang["cancelledTheirVote"], peers)
 			} else {
 				punishUser = false
 			}
 			if choices[id] == -1 {
-				_ = send(bot, "забанят", id)
+				_ = send(bot, lang["handleBug"], id)
 			}
 			c.arr[choices[id]]--
 			choices[id] = -1
@@ -35,12 +34,17 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 			c.arr[choice]++
 			if c.arr[choice] > MaxUsersPerGroup {
 				punishUser = true
-				_ = send(bot, "Вам нужно перевыбрать. Эта группа заполнена доверху.", id)
-				_ = alertEveryoneButTXT(id, bot, "⚠️⚠️⚠️ "+placeholder+" попытался(-ась) выбрать "+
-					"заполненную группу ⚠️⚠️⚠️", peers)
+				_ = send(bot, lang["groupFilled"], id)
+				_ = alertEveryoneButTXT(id, bot, "⚠️⚠️⚠️ "+placeholder+lang["someoneTriedFilledGroup"]+
+					"⚠️⚠️⚠️", peers)
 			} else {
-				group := strings.Replace(groups[choice], "ппа", "ппу", -1) // russian language workarounds
-				_ = alertEveryoneButTXT(id, bot, placeholder+" выбрал(-а) "+group+".", peers)
+				if BotLanguage == "russian" {
+					group := strings.Replace(groups[choice], "ппа", "ппу", -1) // russian language workarounds
+					_ = alertEveryoneButTXT(id, bot, placeholder+lang["chose"]+group+".", peers)
+				} else {
+					_ = alertEveryoneButTXT(id, bot, placeholder+lang["chose"]+groups[choice]+".", peers)
+
+				}
 			}
 		}
 	}
@@ -49,7 +53,7 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 func genGroups() []string {
 	res := make([]string, 0, NumberOfGroups)
 	for i := 1; i != NumberOfGroups+1; i++ {
-		res = append(res, "группа "+strconv.Itoa(i))
+		res = append(res, lang["group"]+strconv.Itoa(i))
 	}
 	return res
 }
@@ -64,14 +68,6 @@ func in(peers []int64, target int64) int {
 		}
 	}
 	return -1
-}
-
-func shuffle(slice []int64) []int64 {
-	for i := range slice {
-		j := rand.Intn(i + 1)
-		slice[i], slice[j] = slice[j], slice[i]
-	}
-	return slice
 }
 
 func formTable(nicknamesAndIDs map[int64][]string, assignments map[int]int64) string {
@@ -213,7 +209,7 @@ func formCounter(c *Counter) string {
 		return res
 	}
 	for i := 0; i < NumberOfGroups; i++ {
-		res += "- " + groups[i] + ": " + strconv.Itoa(c.arr[i]) + "\n"
+		res += "- <b>" + groups[i] + ": " + strconv.Itoa(c.arr[i]) + "</b>\n"
 	}
 	return res
 }
@@ -264,4 +260,10 @@ func sendNoPoll(bot *tgbotapi.BotAPI, txt string, chatID int64) {
 	}
 	msg.ParseMode = tgbotapi.ModeHTML
 	_, _ = bot.Send(msg)
+}
+
+func initChoices(choices *map[int64]int, peers []int64) {
+	for _, peer := range peers {
+		(*choices)[peer] = -1
+	}
 }
