@@ -104,16 +104,6 @@ func send[sendable string | []byte | []rune](bot *tgbotapi.BotAPI, txt sendable,
 	return err
 }
 
-func alertEveryoneTXT[sendable string | []byte](bot *tgbotapi.BotAPI, txt sendable, peers []int64) error {
-	for _, peer := range peers {
-		err := send(bot, txt, peer)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func alertMessage(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, peers []int64) error {
 	for _, peerId := range peers {
 		msg.BaseChat.ChatID = peerId
@@ -125,19 +115,34 @@ func alertMessage(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, peers []int6
 	return nil
 }
 
-func alertMsgBut(id int64, bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, peers []int64) error {
-	for _, peer := range peers {
-		if peer != id {
-			msg.BaseChat.ChatID = peer
-			_, err := bot.Send(msg)
+/*
+-----UNUSED FUNCTIONS-----
+
+	func alertEveryoneTXT[sendable string | []byte](bot *tgbotapi.BotAPI, txt sendable, peers []int64) error {
+		for _, peer := range peers {
+			err := send(bot, txt, peer)
 			if err != nil {
 				return err
 			}
 		}
+		return nil
 	}
-	return nil
-}
 
+	func alertMsgBut(id int64, bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, peers []int64) error {
+		for _, peer := range peers {
+			if peer != id {
+				msg.BaseChat.ChatID = peer
+				_, err := bot.Send(msg)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+-----END UNUSED FUNCTIONS-----
+*/
 func alertCustomBut(id int64, bot *tgbotapi.BotAPI, txt string, reply, replyOwner tgbotapi.ReplyKeyboardMarkup, peers []int64) error {
 	for _, peer := range peers {
 		if peer != id {
