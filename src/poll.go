@@ -30,12 +30,12 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		table := "Очередь:\n" + formTable(usersHashmap, assignments)
 		for n, chatID := range assignments {
 			txt := "Вам был назначен номер " + strconv.Itoa(n) + ". Вы " + strconv.Itoa(n+1) + " в порядке очереди."
-
-			err := send(bot, txt, chatID)
-			err2 := send(bot, table, chatID)
-			if err != nil || err2 != nil {
-				log.Println(err, err2)
+			msg := tgbotapi.NewMessage(chatID, txt)
+			if chatID == int64owner {
+				msg.ReplyMarkup = pollOwnerKeyboard
 			}
+			_, _ = bot.Send(msg)
+			_ = send(bot, table, chatID)
 		}
 
 		i := 0
@@ -45,18 +45,24 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		thePoll := tgbotapi.NewPoll(assignments[i], question, options...)
 		thePoll.IsAnonymous = false
 
-		pollText := "Вот опрос. \n\n" + "Когда сделаете окончательный выбор, пожалуйста, нажмите /next.\n\n"
+		pollText := "Опрос предоставлен ниже. \n\n" + "Когда сделаете окончательный выбор, пожалуйста, нажмите на кнопку ниже.\n\n"
 
-		_ = send(bot, pollText, assignments[i])
+		pollMsg := tgbotapi.NewMessage(assignments[i], pollText)
+		_, _ = bot.Send(pollMsg)
+
 		_ = sendCounter(bot, &counter, assignments[i])
 		msg, err := bot.Send(thePoll)
 		if err != nil {
 			log.Fatal(err)
 		}
+		button := tgbotapi.NewMessage(assignments[i], "кнопка ↓")
+		button.ParseMode = tgbotapi.ModeHTML
+		button.ReplyMarkup = sendInline
+		_, _ = bot.Send(button)
 		tellQueue := func() {
 			txt := "Сейчас выбирает " +
 				determinePlaceholder(assignments[i], usersHashmap[assignments[i]][1], usersHashmap[assignments[i]][0])
-			_ = alertEveryoneBut(assignments[i], bot, txt, peers)
+			_ = alertEveryoneButTXT(assignments[i], bot, txt, peers)
 		}
 		tellQueue()
 		for update := range c {
@@ -69,78 +75,112 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 			} else if update.PollAnswer != nil && update.PollAnswer.User.ID != assignments[i] {
 				chatID := update.PollAnswer.User.ID
 				txt := determinePlaceholder(chatID, usersHashmap[chatID][1], usersHashmap[chatID][0])
-				txt += " повлиял на голосование не в свою очередь ⚠️⚠️⚠️ \n\nТеперь придётся проводить голосование заново."
-				_ = alertEveryoneBut(chatID, bot, txt, peers)
+				txt += " повлиял на голосование <b>не в свою очередь</b> ⚠️⚠️⚠️ \n\nТеперь придётся проводить голосование заново."
+				_ = alertEveryoneButTXT(chatID, bot, txt, peers)
 				_ = send(bot, "Вы проголосовали не в свою очередь. Теперь придётся провести голосование заново.", chatID)
 				break
 			}
-			if update.Message == nil {
-				continue
-			}
-			chatID := update.Message.From.ID
-			if chatID != int64owner && chatID != assignments[i] {
-				// only process messages
-				// from the owner and the curr id
-				_ = send(bot, "Сейчас не ваша очередь, подождите.", chatID)
-				continue
-			}
-			if chatID == assignments[i] && update.Message.Command() == "next" {
-				if choices[chatID] == -1 {
-					_ = send(bot, "Вы должны выбрать хоть какую-нибудь группу.", chatID)
+			if update.Message != nil {
+				chatID := update.Message.From.ID
+				if chatID != int64owner {
+					// only process messages
+					// from the owner and the curr id
+					_ = send(bot, "Сообщения в режиме голосования не принимаются.", chatID)
 					continue
 				}
-				if punishUser {
-					_ = send(bot, "Вы должны выбрать группу, в которой есть места.", chatID)
-					continue
-				}
-				i++
-				txt := "Вы выбрали " + strings.Replace(groups[choices[chatID]], "ппа", "ппу", -1) + "."
-				_ = send(bot, txt, chatID)
-				forward := tgbotapi.NewForward(assignments[i], assignments[i-1], msg.MessageID)
-				if i == len(peers) { // end the poll
-					forward = tgbotapi.NewForward(int64owner, assignments[i-1], msg.MessageID)
-					txt = "Голосование завершено. Всем спасибо за участие. " +
-						"Опрос отправлен " + determinePlaceholder(int64owner, usersHashmap[int64owner][1], usersHashmap[int64owner][0])
-					_, _ = bot.Send(forward)
-					deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
-					_, _ = bot.Send(deleter)
-					_ = alertEveryoneBut(int64owner, bot, txt, peers)
-					_ = send(bot, "Голосование завершено. Результаты выше.", int64owner)
-					goodEnd = true
-					break
-				}
-				tellQueue()
-				_ = send(bot, pollText, assignments[i])
-				infoText := "Выбирайте группу, в которой есть места. Счётчик мест для каждой группы: \n\n" +
-					formCounter(&counter) + "\n\n" + "Подходят группы, в которых меньше " +
-					strconv.Itoa(MaxUsersPerGroup) + " человек. Люди, выбравшие группы:\n\n" + formChosen(choices)
-				_ = send(bot, infoText, assignments[i])
-				tmp, _ := bot.Send(forward)
-				deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
-				_, _ = bot.Send(deleter)
-				msg = tmp
-			}
 
-			if chatID == int64owner {
-				if update.Message.Command() == "poll" {
-					err := send(bot, "poll stopped", int64owner)
-					if err != nil {
-						log.Println(err)
+				if chatID == int64owner {
+					if update.Message.Command() == "poll" {
+						err := send(bot, "poll stopped", int64owner)
+						if err != nil {
+							log.Println(err)
+						}
+						break
+					} else if update.Message.Command() == "shutdown" {
+						err := send(bot, "Shutting down.", int64owner)
+						if err != nil {
+							log.Fatal(err)
+						}
+						os.Exit(0)
 					}
-					break
-				} else if update.Message.Command() == "shutdown" {
-					err := send(bot, "Shutting down.", int64owner)
-					if err != nil {
-						log.Fatal(err)
+				}
+			} else if update.CallbackQuery != nil {
+				chatID := update.CallbackQuery.From.ID
+				query := update.CallbackQuery.Data
+				queryID := update.CallbackQuery.ID
+				messageID := update.CallbackQuery.Message.MessageID
+				if query == "send" {
+					if chatID == assignments[i] {
+
+						if choices[chatID] == -1 {
+							_, _ = bot.Request(tgbotapi.NewCallback(queryID, "Вы должны выбрать хоть какую-нибудь группу."))
+							continue
+						}
+
+						if punishUser {
+							_, _ = bot.Request(tgbotapi.NewCallback(queryID, "Вы должны выбрать группу, в которой есть места."))
+						}
+
+						i++
+
+						txt := "Вы выбрали " + strings.Replace(groups[choices[chatID]], "ппа", "ппу", -1) + "."
+						editor := tgbotapi.NewEditMessageText(chatID, messageID, "Спасибо за ответ. "+txt)
+						_, _ = bot.Send(editor)
+
+						forward := tgbotapi.NewForward(assignments[i], assignments[i-1], msg.MessageID)
+						if i == len(peers) { // end the poll
+							// forward the poll to the owner
+							forward = tgbotapi.NewForward(int64owner, assignments[i-1], msg.MessageID)
+							txt = "Голосование завершено. Всем спасибо за участие. " +
+								"Опрос отправлен " + determinePlaceholder(int64owner,
+								usersHashmap[int64owner][1], usersHashmap[int64owner][0])
+							_ = alertCustomBut(int64owner, bot, txt, noPollKeyboard, ownerKeyboard, peers)
+							_, _ = bot.Send(forward)
+
+							// delete the poll from the chat with the last guy
+							deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
+							_, _ = bot.Send(deleter)
+							_ = send(bot, "Голосование завершено. Результаты выше.", int64owner)
+							goodEnd = true
+							break
+						}
+						// don't end the poll, then
+						tellQueue()
+
+						pollMsg = tgbotapi.NewMessage(assignments[i], pollText)
+						_, _ = bot.Send(pollMsg)
+						infoText := "Выбирайте группу, в которой есть места. Счётчик мест для каждой группы: \n\n" +
+							formCounter(&counter) + "\n\n" + "Подходят группы, в которых <b>меньше " +
+							strconv.Itoa(MaxUsersPerGroup) + "</b> человек. Люди, выбравшие группы:\n\n" + formChosen(choices)
+						_ = send(bot, infoText, assignments[i])
+						tmp, _ := bot.Send(forward)
+						deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
+						_, _ = bot.Send(deleter)
+						msg = tmp
+
+						button = tgbotapi.NewMessage(assignments[i], "кнопка ↓")
+						button.ParseMode = tgbotapi.ModeHTML
+						button.ReplyMarkup = sendInline
+						_, _ = bot.Send(button)
+
+						callback := tgbotapi.NewCallback(queryID, "Спасибо за уделённое время.")
+						_, _ = bot.Request(callback)
+
+					} else { // chatID != assignments[i]
+						callback := tgbotapi.NewCallback(queryID, "забанят")
+						_, _ = bot.Request(callback)
 					}
-					os.Exit(0)
+				} else { // non-send query (probably noPoll query)
+					callback := tgbotapi.NewCallback(queryID, "Дождитесь окончания голосования.")
+					_, _ = bot.Request(callback)
 				}
 			}
 		}
 
 		if !goodEnd {
-			_ = alertEveryone(bot, "Что-то пошло не так во время голосования. Голосование завершено.\n\n"+
-				"Зарегистрируйтесь на новое голосование, нажав --> /register.", peers)
+			txt := "Что-то пошло не так во время голосования. Голосование завершено.\n\n" +
+				"Зарегистрируйтесь на новое голосование, нажав кнопку ниже."
+			_ = alertCustom(bot, txt, noPollKeyboard, ownerKeyboard, peers)
 		}
 		// end of the poll -- reset all data
 		peers = make([]int64, 0, len(peers))
