@@ -79,7 +79,16 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 					case lang["pollButton"]:
 						if chatID == int64owner {
 							txt := ""
-							if len(participants) <= 1 {
+							length := func() int {
+								count := 0
+								for _, v := range participants {
+									if v == 1 {
+										count++
+									}
+								}
+								return count
+							}()
+							if length <= 1 {
 								txt = lang["notEnoughUsers"]
 								sendNoPoll(bot, txt, chatID)
 								continue
