@@ -3,18 +3,23 @@ package main
 import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
-	"os"
 	"strconv"
 	"sync"
 )
 
-func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, startPoll chan<- struct{}, stopPoll <-chan struct{}) {
+func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, startPoll, startIdle chan<- struct{}, stopPoll <-chan struct{}) {
 	defer wg.Done()
 	for {
+		<-stopPoll
 	loop:
 		for update := range c {
 			if update.Message != nil {
+
 				chatID := update.Message.Chat.ID
+				if in(peers, chatID) == -1 {
+					peers = append(peers, chatID)
+				}
+				usersHashmap[chatID] = []string{update.Message.From.UserName, update.Message.From.FirstName}
 				if update.Message.IsCommand() {
 					if update.Message.Command() == "start" {
 						text := lang["start"]
@@ -31,11 +36,20 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 					switch update.Message.Text {
 					case lang["list"]:
 						txt := ""
+						length := func() int {
+							count := 0
+							for _, v := range participants {
+								if v == 1 {
+									count++
+								}
+							}
+							return count
+						}()
 						switch {
-						case 2 <= len(peers) && len(peers) <= 4 && (len(peers) < 10 || len(peers) > 15):
-							txt = lang["listCase"] + strconv.Itoa(len(peers)) + lang["listCase1"]
+						case 2 <= length && length <= 4 && (length < 10 || length > 15):
+							txt = lang["listCase"] + strconv.Itoa(length) + lang["listCase1"]
 						default:
-							txt = lang["listCase"] + strconv.Itoa(len(peers)) + lang["listCase2"]
+							txt = lang["listCase"] + strconv.Itoa(length) + lang["listCase2"]
 						}
 						txt += formActiveUsers(usersHashmap)
 						sendNoPoll(bot, txt, chatID)
@@ -43,22 +57,29 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 						text := lang["start"]
 						sendNoPoll(bot, text, chatID)
 
-						if in(peers, chatID) != -1 {
+						if participants[chatID] == 1 {
 							msg := tgbotapi.NewMessage(chatID, lang["userEnlists"])
 							msg.ReplyMarkup = quitInline
 							msg.ParseMode = tgbotapi.ModeHTML
 							_, _ = bot.Send(msg)
-						} else {
+						} else if participants[chatID] == 0 {
 							text2 := lang["userIsThinkingAboutEnlisting"]
 							msg := tgbotapi.NewMessage(chatID, text2)
 							msg.ReplyMarkup = noPollInline
+							msg.ParseMode = tgbotapi.ModeHTML
+							_, _ = bot.Send(msg)
+						} else {
+							text2 := lang["userDoesntEnlist"]
+							msg := tgbotapi.NewMessage(chatID, text2)
+							msg.ReplyMarkup = registerInline
+							msg.ParseMode = tgbotapi.ModeHTML
 							_, _ = bot.Send(msg)
 						}
 
 					case lang["pollButton"]:
 						if chatID == int64owner {
 							txt := ""
-							if len(peers) <= 1 {
+							if len(participants) <= 1 {
 								txt = lang["notEnoughUsers"]
 								sendNoPoll(bot, txt, chatID)
 								continue
@@ -66,7 +87,7 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 							txt = lang["pollStarted"]
 							msg := tgbotapi.NewMessage(chatID, txt)
 							msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-							err := alertMessage(bot, msg, peers)
+							err := alertMessage(bot, msg, getActivePeers())
 							if err != nil {
 								log.Println(err)
 							}
@@ -77,8 +98,12 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 						}
 					case lang["shutdownButton"]:
 						if chatID == int64owner {
-							sendNoPoll(bot, lang["shutdown"], int64owner)
-							os.Exit(228)
+							err := alertCustom(bot, lang["shutdown"], tgbotapi.NewRemoveKeyboard(true), idleOwnerKeyboard, peers)
+							if err != nil {
+								log.Println(err)
+							}
+							startIdle <- struct{}{}
+							break loop
 						}
 						sendNoPoll(bot, lang["notPermitted"], chatID)
 					default:
@@ -95,9 +120,8 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 				switch data {
 				case "register":
 					txt := ""
-					if in(peers, userId) == -1 {
-						peers = append(peers, userId)                        // add the user to the slice of users
-						usersHashmap[userId] = []string{username, firstname} // add the user to the hashmap of users
+					if participants[userId] <= 0 {
+						participants[userId] = 1
 						txt = lang["addedToPoll"]
 						placeholder := determinePlaceholder(userId, firstname, username)
 
@@ -119,13 +143,11 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 					_, _ = bot.Request(callback)
 				case "quit":
 					txt := ""
-					if in(peers, userId) == -1 {
+					if participants[userId] == -1 {
 						txt = lang["userAlreadyNotInPoll"]
 					} else {
 						firstName := update.CallbackQuery.From.FirstName
-						index := in(peers, userId)
-						peers = append(peers[0:index], peers[index+1:]...)
-						delete(usersHashmap, userId)
+						participants[userId] = -1
 						txt = lang["userDeletedFromPoll"]
 
 						msg := tgbotapi.NewEditMessageText(userId, messageId, lang["userDoesntEnlist"])
@@ -147,6 +169,5 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 				}
 			}
 		}
-		<-stopPoll
 	}
 }

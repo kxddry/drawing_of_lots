@@ -3,7 +3,6 @@ package main
 import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,19 +10,20 @@ import (
 
 // Processes the poll procedure. Runs in a goroutine automatically. The bot owner can only stop the poll.
 func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
-	wg *sync.WaitGroup, startPoll <-chan struct{}, endPoll chan<- struct{}) {
+	wg *sync.WaitGroup, startPoll <-chan struct{}, endPoll, startIdle chan<- struct{}) {
 	defer wg.Done()
 	for {
-		<-startPoll                                        // waiting for input: polling will only start when the bot owner presses the button
-		assignments := make(map[int]int64, len(peers))     // key-value pair with n --> userId
-		shuffledPeers, random := shuffleTrulyRandom(peers) // randomized slice of users (in case random.org API didn't work, pseudo randomized)
-		choices := make(map[int64]int, len(peers))         // store each voter's choice
+		<-startPoll                                              // waiting for input: polling will only start when the bot owner presses the button
+		assignments := make(map[int]int64, len(participants))    // key-value pair with n --> userId
+		activePeers := getActivePeers()                          // peers participating in the poll
+		shuffledPeers, random := shuffleTrulyRandom(activePeers) // randomized slice of users (in case random.org API didn't work, pseudo randomized)
+		choices := make(map[int64]int, len(activePeers))         // store each voter's choice
 		counter := Counter{}
 		goodEnd := false
 		myUpdChan := make(chan tgbotapi.Update)
 		go counter.process(myUpdChan, bot, choices)
 
-		initChoices(&choices, peers)
+		initChoices(&choices, activePeers)
 
 		if random != nil {
 			log.Println("Random.org API did not work. Using pseudorandom instead.")
@@ -36,6 +36,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		for n, chatID := range assignments {
 			txt := lang["youWereAssigned"] + strconv.Itoa(n) + lang["youAre"] + strconv.Itoa(n+1) + lang["inQueue"]
 			msg := tgbotapi.NewMessage(chatID, txt)
+			msg.ParseMode = tgbotapi.ModeHTML
 			if chatID == int64owner {
 				msg.ReplyMarkup = pollOwnerKeyboard
 			}
@@ -53,6 +54,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		pollText := lang["pollText"]
 
 		pollMsg := tgbotapi.NewMessage(assignments[i], pollText)
+		pollMsg.ParseMode = tgbotapi.ModeHTML
 		_, _ = bot.Send(pollMsg)
 
 		_ = sendCounter(bot, &counter, assignments[i])
@@ -67,9 +69,10 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		tellQueue := func() {
 			txt := lang["choosingRightNow"] +
 				determinePlaceholder(assignments[i], usersHashmap[assignments[i]][1], usersHashmap[assignments[i]][0])
-			_ = alertEveryoneButTXT(assignments[i], bot, txt, peers)
+			_ = alertEveryoneButTXT(assignments[i], bot, txt, activePeers)
 		}
 		tellQueue()
+	loop:
 		for update := range c {
 			if update.PollAnswer != nil && update.PollAnswer.PollID != msg.Poll.ID {
 				continue
@@ -81,8 +84,8 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 				chatID := update.PollAnswer.User.ID
 				txt := determinePlaceholder(chatID, usersHashmap[chatID][1], usersHashmap[chatID][0])
 				txt += lang["outsideTheirTurn"]
-				_ = alertEveryoneButTXT(chatID, bot, txt, peers)
-				_ = send(bot, lang["outsideYourTurn"], chatID)
+				_ = alertCustomBut(chatID, bot, txt, noPollKeyboard, ownerKeyboard, activePeers)
+				sendNoPoll(bot, lang["outsideYourTurn"], chatID)
 				break
 			}
 			if update.Message != nil {
@@ -102,11 +105,12 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 						}
 						break
 					} else if update.Message.Text == lang["shutdownButton"] {
-						err := send(bot, lang["shutdown"], int64owner)
+						err := alertCustom(bot, lang["shutdown"], tgbotapi.NewRemoveKeyboard(true), idleOwnerKeyboard, activePeers)
 						if err != nil {
-							log.Fatal(err)
+							log.Println(err)
 						}
-						os.Exit(0)
+						startIdle <- struct{}{}
+						break loop
 					}
 				}
 			} else if update.CallbackQuery != nil {
@@ -138,18 +142,18 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 						_, _ = bot.Send(editor)
 
 						forward := tgbotapi.NewForward(assignments[i], assignments[i-1], msg.MessageID)
-						if i == len(peers) { // end the poll
+						if i == len(activePeers) { // end the poll
 							// forward the poll to the owner
 							forward = tgbotapi.NewForward(int64owner, assignments[i-1], msg.MessageID)
 							txt = lang["successfulPollEnd"] + determinePlaceholder(int64owner,
 								usersHashmap[int64owner][1], usersHashmap[int64owner][0])
-							_ = alertCustomBut(int64owner, bot, txt, noPollKeyboard, ownerKeyboard, peers)
+							_ = alertCustomBut(int64owner, bot, txt, noPollKeyboard, ownerKeyboard, activePeers)
 							_, _ = bot.Send(forward)
 
 							// delete the poll from the chat with the last guy
 							deleter := tgbotapi.NewDeleteMessage(assignments[i-1], msg.MessageID)
 							_, _ = bot.Send(deleter)
-							_ = send(bot, lang["endResults"], int64owner)
+							sendNoPoll(bot, lang["endResults"], int64owner)
 							goodEnd = true
 							break
 						}
@@ -157,6 +161,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 						tellQueue()
 
 						pollMsg = tgbotapi.NewMessage(assignments[i], pollText)
+						pollMsg.ParseMode = tgbotapi.ModeHTML
 						_, _ = bot.Send(pollMsg)
 						infoText := lang["infoText1"] +
 							formCounter(&counter) + lang["infoText2"] +
@@ -180,7 +185,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 						_, _ = bot.Request(callback)
 					}
 				} else { // non-send query (probably noPoll query)
-					callback := tgbotapi.NewCallback(queryID, "Дождитесь окончания голосования.")
+					callback := tgbotapi.NewCallback(queryID, lang["waitForPollEnd"])
 					_, _ = bot.Request(callback)
 				}
 			}
@@ -188,13 +193,14 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 
 		if !goodEnd {
 			txt := lang["badPollEnd"]
-			_ = alertCustom(bot, txt, noPollKeyboard, ownerKeyboard, peers)
+			_ = alertCustom(bot, txt, registerInline, registerInline, activePeers)
 		}
 		// end of the poll -- reset all data
-		peers = make([]int64, 0, len(peers))
-		shuffledPeers = make([]int64, 0, len(peers))
+		activePeers = make([]int64, 0, len(activePeers))
+		shuffledPeers = make([]int64, 0, len(shuffledPeers))
 		usersHashmap = make(map[int64][]string, len(usersHashmap))
 		assignments = make(map[int]int64, len(assignments))
+		participants = make(map[int64]int, len(participants))
 
 		endPoll <- struct{}{}
 

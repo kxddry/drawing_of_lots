@@ -19,7 +19,7 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 		placeholder := determinePlaceholder(id, firstname, username)
 		if len(upd.PollAnswer.OptionIDs) == 0 {
 			if c.arr[choices[id]] <= 5 {
-				_ = alertEveryoneButTXT(id, bot, placeholder+lang["cancelledTheirVote"], peers)
+				_ = alertEveryoneButTXT(id, bot, placeholder+lang["cancelledTheirVote"], getActivePeers())
 			} else {
 				punishUser = false
 			}
@@ -36,13 +36,13 @@ func (c *Counter) process(updChan <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, 
 				punishUser = true
 				_ = send(bot, lang["groupFilled"], id)
 				_ = alertEveryoneButTXT(id, bot, "⚠️⚠️⚠️ "+placeholder+lang["someoneTriedFilledGroup"]+
-					"⚠️⚠️⚠️", peers)
+					"⚠️⚠️⚠️", getActivePeers())
 			} else {
 				if BotLanguage == "russian" {
 					group := strings.Replace(groups[choice], "ппа", "ппу", -1) // russian language workarounds
-					_ = alertEveryoneButTXT(id, bot, placeholder+lang["chose"]+group+".", peers)
+					_ = alertEveryoneButTXT(id, bot, placeholder+lang["chose"]+group+".", getActivePeers())
 				} else {
-					_ = alertEveryoneButTXT(id, bot, placeholder+lang["chose"]+groups[choice]+".", peers)
+					_ = alertEveryoneButTXT(id, bot, placeholder+lang["chose"]+groups[choice]+".", getActivePeers())
 
 				}
 			}
@@ -85,6 +85,9 @@ func formActiveUsers(nicknamesAndIDs map[int64][]string) string {
 	res := ""
 	i := 1
 	for ID, arr := range nicknamesAndIDs {
+		if participants[ID] < 1 {
+			continue
+		}
 		username, firstName := arr[0], arr[1]
 		str := strconv.Itoa(i) + ". " + determinePlaceholder(ID, firstName, username) + "\n"
 		res += str
@@ -143,6 +146,7 @@ func alertCustomBut(id int64, bot *tgbotapi.BotAPI, txt string, reply, replyOwne
 	for _, peer := range peers {
 		if peer != id {
 			msg := tgbotapi.NewMessage(peer, txt)
+			msg.ParseMode = tgbotapi.ModeHTML
 			msg.BaseChat.ChatID = peer
 			if peer == int64owner {
 				msg.ReplyMarkup = replyOwner
@@ -158,10 +162,12 @@ func alertCustomBut(id int64, bot *tgbotapi.BotAPI, txt string, reply, replyOwne
 	return nil
 }
 
-func alertCustom(bot *tgbotapi.BotAPI, txt string, reply, replyOwner tgbotapi.ReplyKeyboardMarkup, peers []int64) error {
+func alertCustom(bot *tgbotapi.BotAPI,
+	txt string, reply, replyOwner interface{}, peers []int64) error {
 	for _, peer := range peers {
 		msg := tgbotapi.NewMessage(peer, txt)
 		msg.BaseChat.ChatID = peer
+		msg.ParseMode = tgbotapi.ModeHTML
 		if peer == int64owner {
 			msg.ReplyMarkup = replyOwner
 		} else {
@@ -230,6 +236,7 @@ func determinePlaceholder(id int64, firstname, username string) string {
 
 func sendCounter(bot *tgbotapi.BotAPI, c *Counter, chatID int64) error {
 	msg := tgbotapi.NewMessage(chatID, formCounter(c))
+	msg.ParseMode = tgbotapi.ModeHTML
 	_, err := bot.Send(msg)
 	return err
 }
@@ -266,4 +273,14 @@ func initChoices(choices *map[int64]int, peers []int64) {
 	for _, peer := range peers {
 		(*choices)[peer] = -1
 	}
+}
+
+func getActivePeers() []int64 {
+	res := make([]int64, 0, cap(peers))
+	for _, id := range peers {
+		if participants[id] == 1 {
+			res = append(res, id)
+		}
+	}
+	return res
 }

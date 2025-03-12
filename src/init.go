@@ -9,7 +9,7 @@ import (
 
 const (
 	MaxUsers         = 28
-	NumberOfGroups   = 3
+	NumberOfGroups   = MaxUsers/MaxUsersPerGroup + 1
 	MaxUsersPerGroup = 10 // will have to check back on that
 )
 
@@ -24,6 +24,7 @@ var (
 	groups               = genGroups()
 	punishUser           = false
 	randomToken          = envFile["RANDOM_ORG_API_TOKEN"]
+	participants         = make(map[int64]int, MaxUsers)
 )
 
 // keyboards
@@ -48,6 +49,11 @@ var (
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(lang["pollButton"]),
 			tgbotapi.NewKeyboardButton(lang["shutdownButton"]),
+		),
+	)
+	idleOwnerKeyboard = tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(lang["startBot"]),
 		),
 	)
 )

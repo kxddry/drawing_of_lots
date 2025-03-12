@@ -13,16 +13,18 @@ func main() {
 		return
 	}
 
-	bot.Debug = true // set true for debugging
+	bot.Debug = false // set true for debugging
 
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = 30
 	updates := bot.GetUpdatesChan(updateConfig)
 	startPoll := make(chan struct{})
 	endPoll := make(chan struct{})
+	startIdle := make(chan struct{})
 	wg := sync.WaitGroup{}
-	go noPoll(updates, bot, &wg, startPoll, endPoll)
-	go poll(updates, bot, &wg, startPoll, endPoll)
-	wg.Add(2)
+	go handleIdleBot(bot, updates, endPoll, startIdle, &wg)
+	go noPoll(updates, bot, &wg, startPoll, startIdle, endPoll)
+	go poll(updates, bot, &wg, startPoll, endPoll, startIdle)
+	wg.Add(3)
 	wg.Wait()
 }

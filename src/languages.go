@@ -7,6 +7,13 @@ package main
 var (
 	language = map[string]map[string]string{
 		"english": {
+			// idle
+			"startBot":     "Start bot",
+			"pressToStart": "Press the button below to start the bot.",
+			"startingBot":  "Okay, starting the bot...",
+			"idle":         "This bot is currently disabled. Ask the owner to start the poll.",
+
+			// no poll
 			"register": "Register",
 			"quit":     "Quit",
 			"start": "Welcome! \n<b>Usage:</b> \n\t- \"<b>Register</b>\" to register in the poll" +
@@ -28,7 +35,7 @@ var (
 			"notEnoughUsers":               "Not enough users.",
 			"pollStarted":                  "The poll has started.",
 			"notPermitted":                 "You are not permitted to do that action.",
-			"shutdown":                     "Shutting down...",
+			"shutdown":                     "The bot is now disabled.",
 			"unknownMessage":               "I do not know how to respond to that.",
 			"addedToPoll":                  "You are added to the poll.",
 			"someoneAddedToPoll":           " added to the poll.",
@@ -59,7 +66,7 @@ var (
 			"outsideYourTurn":    "You have voted outside your turn. The poll must be restarted now.",
 			"messageDuringPoll":  "Messages are not accepted during the poll.",
 			"pollButton":         "Poll",
-			"shutdownButton":     "Shutdown",
+			"shutdownButton":     "Disable bot",
 			"sendButton":         "Send",
 			"emergencyPollStop":  "The poll was stopped.",
 			"noChoice":           "You cannot choose an empty group.",
@@ -78,6 +85,12 @@ var (
 				"Register to a new one by pressing the button below.",
 		},
 		"russian": {
+			// idle
+			"idle":         "Этот бот сейчас выключен. Попросите владельца запустить бота.",
+			"startBot":     "Запуск",
+			"pressToStart": "Нажмите на кнопку ниже для запуска бота.",
+			"startingBot":  "Окей, запускаю бота...",
+
 			// no poll
 			"register": "Регистрация",
 			"quit":     "Выход",
@@ -100,7 +113,7 @@ var (
 			"notEnoughUsers":               "Недостаточно пользователей.",
 			"pollStarted":                  "Голосование началось.",
 			"notPermitted":                 "Вы не имеете права на это действие.",
-			"shutdown":                     "Выключение...",
+			"shutdown":                     "Теперь бот выключен.",
 			"unknownMessage":               "Я не знаю, как ответить на это сообщение.",
 			"addedToPoll":                  "Вы добавлены в голосование.",
 			"someoneAddedToPoll":           " добавлен(-а) в голосование.",
@@ -130,7 +143,7 @@ var (
 			"outsideYourTurn":    "Вы проголосовали не в свою очередь. Теперь придётся провести голосование заново.",
 			"messageDuringPoll":  "Сообщения в режиме голосования не принимаются.",
 			"pollButton":         "Голосование",
-			"shutdownButton":     "Выключить",
+			"shutdownButton":     "Отключить",
 			"sendButton":         "Отправить",
 			"emergencyPollStop":  "Голосование завершено.",
 			"noChoice":           "Вы должны выбрать хоть какую-нибудь группу.",
