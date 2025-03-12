@@ -14,12 +14,10 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 	loop:
 		for update := range c {
 			if update.Message != nil {
-
 				chatID := update.Message.Chat.ID
-				if in(peers, chatID) == -1 {
-					peers = append(peers, chatID)
-				}
-				usersHashmap[chatID] = []string{update.Message.From.UserName, update.Message.From.FirstName}
+				firstName := update.Message.From.FirstName
+				username := update.Message.From.UserName
+				updateDatabase(chatID, username, firstName)
 				if update.Message.IsCommand() {
 					if update.Message.Command() == "start" {
 						text := lang["start"]
@@ -51,7 +49,7 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 						default:
 							txt = lang["listCase"] + strconv.Itoa(length) + lang["listCase2"]
 						}
-						txt += formActiveUsers(usersHashmap)
+						txt += formActiveUsers()
 						sendNoPoll(bot, txt, chatID)
 					case lang["help"]:
 						text := lang["start"]
@@ -126,6 +124,7 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 				userId := update.CallbackQuery.From.ID
 				username := update.CallbackQuery.From.UserName
 				firstname := update.CallbackQuery.From.FirstName
+				updateDatabase(userId, username, firstname)
 				switch data {
 				case "register":
 					txt := ""

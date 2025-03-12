@@ -58,33 +58,21 @@ func genGroups() []string {
 	return res
 }
 
-func in(peers []int64, target int64) int {
-	if len(peers) == 0 {
-		return -1
-	}
-	for index, peer := range peers {
-		if peer == target {
-			return index
-		}
-	}
-	return -1
-}
-
-func formTable(nicknamesAndIDs map[int64][]string, assignments map[int]int64) string {
+func formTable(assignments map[int]int64) string {
 	res := ""
 	for n := 0; n != len(assignments); n++ {
 		chatID := assignments[n]
-		username, firstName := nicknamesAndIDs[chatID][0], nicknamesAndIDs[chatID][1]
+		username, firstName := usersHashmap[chatID][0], usersHashmap[chatID][1]
 		str := strconv.Itoa(n) + " --> " + determinePlaceholder(chatID, firstName, username) + "\n"
 		res += str
 	}
 	return res
 }
 
-func formActiveUsers(nicknamesAndIDs map[int64][]string) string {
+func formActiveUsers() string {
 	res := ""
 	i := 1
-	for ID, arr := range nicknamesAndIDs {
+	for ID, arr := range usersHashmap {
 		if participants[ID] < 1 {
 			continue
 		}
@@ -138,6 +126,18 @@ func alertMessage(bot *tgbotapi.BotAPI, msg tgbotapi.MessageConfig, peers []int6
 			}
 		}
 		return nil
+	}
+
+	func in(peers []int64, target int64) int {
+		if len(peers) == 0 {
+			return -1
+		}
+		for index, peer := range peers {
+			if peer == target {
+				return index
+			}
+		}
+		return -1
 	}
 
 -----END UNUSED FUNCTIONS-----
@@ -283,4 +283,11 @@ func getActivePeers() []int64 {
 		}
 	}
 	return res
+}
+
+func updateDatabase(chatId int64, username, firstName string) {
+	if len(usersHashmap[chatId]) == 0 {
+		usersHashmap[chatId] = []string{username, firstName}
+		peers = append(peers, chatId)
+	}
 }

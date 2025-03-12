@@ -32,7 +32,7 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 			assignments[n] = participant
 		}
 
-		table := lang["table"] + formTable(usersHashmap, assignments)
+		table := lang["table"] + formTable(assignments)
 		for n, chatID := range assignments {
 			txt := lang["youWereAssigned"] + strconv.Itoa(n) + lang["youAre"] + strconv.Itoa(n+1) + lang["inQueue"]
 			msg := tgbotapi.NewMessage(chatID, txt)
@@ -198,7 +198,6 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 		// end of the poll -- reset all data
 		activePeers = make([]int64, 0, len(activePeers))
 		shuffledPeers = make([]int64, 0, len(shuffledPeers))
-		usersHashmap = make(map[int64][]string, len(usersHashmap))
 		assignments = make(map[int]int64, len(assignments))
 		participants = make(map[int64]int, len(participants))
 

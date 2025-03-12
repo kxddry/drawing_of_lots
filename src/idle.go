@@ -13,7 +13,13 @@ func handleIdleBot(bot *tgbotapi.BotAPI, updates tgbotapi.UpdatesChannel, startN
 		for upd := range updates {
 			if upd.Message == nil {
 				if upd.CallbackQuery != nil {
+					// update database if user is not in it
 					chatId := upd.CallbackQuery.From.ID
+					username := upd.CallbackQuery.From.UserName
+					firstname := upd.CallbackQuery.From.FirstName
+					updateDatabase(chatId, username, firstname)
+
+					// send message
 					msg := tgbotapi.NewMessage(chatId, lang["idle"])
 					msg.ParseMode = tgbotapi.ModeHTML
 					msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
@@ -21,18 +27,13 @@ func handleIdleBot(bot *tgbotapi.BotAPI, updates tgbotapi.UpdatesChannel, startN
 					if err != nil {
 						log.Println(err)
 					}
-					if in(peers, chatId) == -1 {
-						peers = append(peers, chatId)
-					}
-					usersHashmap[chatId] = []string{upd.CallbackQuery.From.UserName, upd.CallbackQuery.From.FirstName}
 				}
 				continue
 			}
 			chatId := upd.Message.Chat.ID
-			if in(peers, chatId) == -1 {
-				peers = append(peers, chatId)
-			}
-			usersHashmap[chatId] = []string{upd.Message.From.UserName, upd.Message.From.FirstName}
+			username := upd.Message.From.UserName
+			firstname := upd.Message.From.FirstName
+			updateDatabase(chatId, username, firstname)
 			if chatId != int64owner {
 				msg := tgbotapi.NewMessage(chatId, lang["idle"])
 				msg.ParseMode = tgbotapi.ModeHTML
