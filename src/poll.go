@@ -106,6 +106,10 @@ func poll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI,
 						break
 					} else if update.Message.Text == lang["shutdownButton"] {
 						err := alertCustom(bot, lang["shutdown"], tgbotapi.NewRemoveKeyboard(true), idleOwnerKeyboard, activePeers)
+						activePeers = make([]int64, 0, len(activePeers))
+						shuffledPeers = make([]int64, 0, len(shuffledPeers))
+						assignments = make(map[int]int64, len(assignments))
+						participants = make(map[int64]int, len(participants))
 						if err != nil {
 							log.Println(err)
 						}

@@ -109,6 +109,7 @@ func noPoll(c <-chan tgbotapi.Update, bot *tgbotapi.BotAPI, wg *sync.WaitGroup, 
 							if err != nil {
 								log.Println(err)
 							}
+							participants = make(map[int64]int, len(participants))
 							startIdle <- struct{}{}
 							break loop
 						}
