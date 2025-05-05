@@ -4,6 +4,11 @@ A Telegram Bot for Drawing of Lots \
 
 ---
 
+### project architecture renovation delayed
+
+
+---
+
 ### The idea:
 
 whenever you have to have a group of people organized in something, something always fails...
